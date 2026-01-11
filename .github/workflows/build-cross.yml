@@ -21,12 +21,12 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip setuptools wheel
-          pip install -r pomodoro_py/requirements.txt || (
+          pip install -r pomodoro_py/requirements.txt --prefer-binary || (
             echo "Primary install failed; attempting to install PySide6 separately"
             pip install PySide6 || true
-            pip install -r pomodoro_py/requirements.txt
+            pip install -r pomodoro_py/requirements.txt --prefer-binary
           )
-          pip install -r pomodoro_py/requirements-dev.txt
+          pip install -r pomodoro_py/requirements-dev.txt --prefer-binary
       - name: Build executable (Windows)
         run: |
           python -m PyInstaller --noconfirm --onefile --windowed --name "Pomodoro-windows" pomodoro_py/main.py
@@ -50,12 +50,12 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip setuptools wheel
-          pip install -r pomodoro_py/requirements.txt || (
+          pip install -r pomodoro_py/requirements.txt --prefer-binary || (
             echo "Primary install failed; attempting to install PySide6 separately"
             pip install PySide6 || true
-            pip install -r pomodoro_py/requirements.txt
+            pip install -r pomodoro_py/requirements.txt --prefer-binary
           )
-          pip install -r pomodoro_py/requirements-dev.txt
+          pip install -r pomodoro_py/requirements-dev.txt --prefer-binary
       - name: Build executable (Linux)
         run: |
           python -m PyInstaller --noconfirm --onefile --name "Pomodoro-linux" pomodoro_py/main.py

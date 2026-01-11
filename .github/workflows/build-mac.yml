@@ -27,12 +27,12 @@ jobs:
           python -m venv .venv
           source .venv/bin/activate
           python -m pip install --upgrade pip setuptools wheel
-          pip install -r pomodoro_py/requirements.txt || (
+          pip install -r pomodoro_py/requirements.txt --prefer-binary || (
             echo "Primary install failed; attempting to install PySide6 separately"
             pip install PySide6 || true
-            pip install -r pomodoro_py/requirements.txt
+            pip install -r pomodoro_py/requirements.txt --prefer-binary
           )
-          pip install -r pomodoro_py/requirements-dev.txt
+          pip install -r pomodoro_py/requirements-dev.txt --prefer-binary
 
       - name: Prepare icon (optional)
         run: |
