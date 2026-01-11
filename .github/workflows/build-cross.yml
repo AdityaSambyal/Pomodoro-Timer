@@ -1,0 +1,63 @@
+name: Cross-platform builds
+
+on:
+  push:
+    tags: ['v*']
+    branches: [ main ]
+  workflow_dispatch: {}
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    strategy:
+      matrix:
+        python-version: [3.11, 3.13]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r pomodoro_py/requirements.txt
+          pip install -r pomodoro_py/requirements-dev.txt
+      - name: Build executable (Windows)
+        run: |
+          python -m PyInstaller --noconfirm --onefile --windowed --name "Pomodoro-windows" pomodoro_py/main.py
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: pomodoro-windows-${{ github.run_id }}
+          path: dist/Pomodoro-windows.exe
+
+  build-linux:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: [3.11, 3.13]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r pomodoro_py/requirements.txt
+          pip install -r pomodoro_py/requirements-dev.txt
+      - name: Build executable (Linux)
+        run: |
+          python -m PyInstaller --noconfirm --onefile --name "Pomodoro-linux" pomodoro_py/main.py
+      - name: Package tar.gz
+        run: |
+          mkdir -p release
+          cp dist/Pomodoro-linux release/
+          tar -czvf pomodoro-linux-${{ github.run_id }}.tar.gz -C release .
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: pomodoro-linux-${{ github.run_id }}
+          path: pomodoro-linux-${{ github.run_id }}.tar.gz

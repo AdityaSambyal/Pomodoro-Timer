@@ -1,0 +1,94 @@
+name: Build macOS app
+
+on:
+  push:
+    branches: [ main ]
+    tags: ['v*']
+  workflow_dispatch: {}
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-mac:
+    runs-on: macos-latest
+    env:
+      PYTHON_VERSION: '3.13'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install dependencies
+        run: |
+          python -m venv .venv
+          source .venv/bin/activate
+          python -m pip install --upgrade pip
+          pip install -r pomodoro_py/requirements.txt
+          pip install -r pomodoro_py/requirements-dev.txt
+
+      - name: Prepare icon (optional)
+        run: |
+          source .venv/bin/activate
+          if [ -f assets/icon.png ]; then
+            ./scripts/make_icns.sh assets/icon.png pomodoro_py/icon.icns || true
+          fi
+
+      - name: Build with PyInstaller
+        run: |
+          source .venv/bin/activate
+          cd pomodoro_py
+          ICON_ARG=""
+          if [ -f icon.icns ]; then ICON_ARG="--icon icon.icns"; fi
+          python -m PyInstaller --noconfirm --onedir --windowed $ICON_ARG --name "Pomodoro" main.py
+
+      - name: Create DMG & checksum
+        run: |
+          set -eux
+          cd pomodoro_py
+          mkdir -p release
+          APP="dist/Pomodoro.app"
+          cp -R "$APP" release/
+          REF=${GITHUB_REF}
+          if [[ "$REF" == refs/tags/* ]]; then
+            TAG=${REF#refs/tags/}
+            DMG_NAME="pomodoro-macos-${TAG}.dmg"
+          else
+            DMG_NAME="pomodoro-macos-${{ github.run_id }}.dmg"
+          fi
+          hdiutil create -volname "Pomodoro" -srcfolder release -ov -format UDZO "$DMG_NAME"
+          shasum -a 256 "$DMG_NAME" | awk '{print $1 "  " $2}' > "$DMG_NAME.sha256"
+          ls -lh "$DMG_NAME" "$DMG_NAME.sha256"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: pomodoro-macos-${{ github.run_id }}
+          path: pomodoro_py/pomodoro-macos-*.dmg
+
+      - name: Create GitHub Release (tag builds)
+        if: startsWith(github.ref, 'refs/tags/')
+        run: |
+          set -eux
+          cd pomodoro_py
+          # determine tag name
+          REF=${GITHUB_REF}
+          TAG=${REF#refs/tags/}
+          DMG="pomodoro-macos-${TAG}.dmg"
+          CHECKSUM="${DMG}.sha256"
+          # generate a quick changelog from git commits between tags (if previous tag exists)
+          PREV_TAG=$(git for-each-ref --sort=-creatordate --format '%(refname:short)' refs/tags | sed -n '2p' || true)
+          if [ -n "$PREV_TAG" ]; then
+            CHANGELOG=$(git log --pretty=format:'- %s (%h)' "$PREV_TAG".."$TAG" | sed 's/^/\n/' )
+          else
+            CHANGELOG="- Release $TAG"
+          fi
+          # create release via API
+          BODY="Release $TAG\n\nChanges:$CHANGELOG\n\nFiles included:\n- $DMG\n- $CHECKSUM"
+          gh release create "$TAG" "$DMG" "$CHECKSUM" --title "Pomodoro $TAG" --notes "$BODY"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
