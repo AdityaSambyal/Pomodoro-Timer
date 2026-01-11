@@ -12,7 +12,7 @@ jobs:
   build-mac:
     runs-on: macos-latest
     env:
-      PYTHON_VERSION: '3.13'
+      PYTHON_VERSION: '3.11'
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -26,8 +26,12 @@ jobs:
         run: |
           python -m venv .venv
           source .venv/bin/activate
-          python -m pip install --upgrade pip
-          pip install -r pomodoro_py/requirements.txt
+          python -m pip install --upgrade pip setuptools wheel
+          pip install -r pomodoro_py/requirements.txt || (
+            echo "Primary install failed; attempting to install PySide6 separately"
+            pip install PySide6 || true
+            pip install -r pomodoro_py/requirements.txt
+          )
           pip install -r pomodoro_py/requirements-dev.txt
 
       - name: Prepare icon (optional)
